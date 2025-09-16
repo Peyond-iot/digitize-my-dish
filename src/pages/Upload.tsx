@@ -71,26 +71,50 @@ const UploadPage = () => {
 
   const startCamera = useCallback(async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      // More flexible constraints for mobile devices
+      const constraints = {
         video: {
           facingMode: { ideal: 'environment' }, // Use back camera on mobile
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        },
+        audio: false
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       
       setStream(mediaStream);
       setIsCameraActive(true);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Ensure video plays on mobile
+        videoRef.current.play().catch(console.error);
       }
     } catch (error) {
-      toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to take photos of your menu.",
-        variant: "destructive",
-      });
+      console.error('Camera error:', error);
+      
+      // Try with basic constraints if the ideal ones fail
+      try {
+        const basicStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        
+        setStream(basicStream);
+        setIsCameraActive(true);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = basicStream;
+          videoRef.current.play().catch(console.error);
+        }
+      } catch (basicError) {
+        toast({
+          title: "Camera access denied",
+          description: "Please allow camera access to take photos of your menu.",
+          variant: "destructive",
+        });
+      }
     }
   }, [toast]);
 
@@ -111,9 +135,19 @@ const UploadPage = () => {
 
     if (!context) return;
 
+    // Wait for video to be ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      toast({
+        title: "Camera not ready",
+        description: "Please wait for the camera to fully load before capturing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || video.clientWidth;
+    canvas.height = video.videoHeight || video.clientHeight;
 
     // Draw video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -296,7 +330,14 @@ const UploadPage = () => {
                         autoPlay
                         playsInline
                         muted
+                        webkit-playsinline="true"
                         className="w-full h-64 md:h-80 object-cover"
+                        onLoadedMetadata={() => {
+                          // Ensure video plays on mobile
+                          if (videoRef.current) {
+                            videoRef.current.play().catch(console.error);
+                          }
+                        }}
                       />
                       <div className="absolute top-4 right-4">
                         <Button
