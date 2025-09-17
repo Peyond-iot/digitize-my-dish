@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Camera, Sparkles, Zap, Upload, Image, CheckCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowRight, Camera, Sparkles, Zap, Upload, Image, CheckCircle, Languages } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -9,6 +10,8 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
+  const [sourceLanguage, setSourceLanguage] = useState("jpn");
+  const [targetLanguage, setTargetLanguage] = useState("eng");
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -76,6 +79,8 @@ const Index = () => {
     
     sessionStorage.setItem('uploadedFile', JSON.stringify(fileData));
     sessionStorage.setItem('fileUrl', previewUrl);
+    sessionStorage.setItem('sourceLanguage', sourceLanguage);
+    sessionStorage.setItem('targetLanguage', targetLanguage);
     
     // Create a new File object and store it
     const reader = new FileReader();
@@ -112,6 +117,58 @@ const Index = () => {
             interactive digital menu with stunning food photos.
           </p>
           
+          {/* Language Selection */}
+          <div className="max-w-2xl mx-auto mb-6">
+            <Card className="p-6 shadow-card">
+              <div className="flex items-center gap-3 mb-4">
+                <Languages className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">Language Settings</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Menu Language (Source)
+                  </label>
+                  <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="jpn">Japanese (日本語)</SelectItem>
+                      <SelectItem value="eng">English</SelectItem>
+                      <SelectItem value="spa">Spanish</SelectItem>
+                      <SelectItem value="fra">French</SelectItem>
+                      <SelectItem value="deu">German</SelectItem>
+                      <SelectItem value="ita">Italian</SelectItem>
+                      <SelectItem value="kor">Korean</SelectItem>
+                      <SelectItem value="chi_sim">Chinese (Simplified)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Target Language (Output)
+                  </label>
+                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select target language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="eng">English</SelectItem>
+                      <SelectItem value="jpn">Japanese (日本語)</SelectItem>
+                      <SelectItem value="spa">Spanish</SelectItem>
+                      <SelectItem value="fra">French</SelectItem>
+                      <SelectItem value="deu">German</SelectItem>
+                      <SelectItem value="ita">Italian</SelectItem>
+                      <SelectItem value="kor">Korean</SelectItem>
+                      <SelectItem value="zh">Chinese</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           {/* Upload Section */}
           <div className="max-w-2xl mx-auto mb-8">
             <Card className="p-8 shadow-card border-2 border-dashed border-border hover:border-primary/50 transition-colors">

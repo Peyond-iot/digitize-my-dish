@@ -9,6 +9,19 @@ import Tesseract from "tesseract.js";
 
 const UNSPLASH_KEY = "Yxtdb1RkUN0vivfPLtZFsxypStl78w8vN7KWK58utzY";
 
+// Language mapping for Tesseract and translation
+const LANGUAGE_MAP = {
+  'jpn': 'ja',
+  'eng': 'en',
+  'spa': 'es',
+  'fra': 'fr',
+  'deu': 'de',
+  'ita': 'it',
+  'kor': 'ko',
+  'chi_sim': 'zh',
+  'zh': 'zh'
+};
+
 interface MenuItem {
   name: string;
   price: string;
@@ -39,6 +52,26 @@ const Processing = () => {
     return { name: cleaned, price: "" };
   };
 
+  const translateText = async (text: string, sourceLang: string, targetLang: string) => {
+    if (sourceLang === targetLang || !text.trim()) return text;
+    
+    try {
+      // Using MyMemory Translation API (free)
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`
+      );
+      const data = await response.json();
+      
+      if (data.responseStatus === 200 && data.responseData?.translatedText) {
+        return data.responseData.translatedText;
+      }
+    } catch (error) {
+      console.warn('Translation failed, using original text:', error);
+    }
+    
+    return text;
+  };
+
   const fetchImageFor = async (query: string) => {
     const safeQuery = query?.trim() || "food";
     if (!safeQuery) return `https://via.placeholder.com/400x300?text=No+Image`;
@@ -64,6 +97,8 @@ const Processing = () => {
     try {
       const fileData = sessionStorage.getItem('fileData');
       const fileUrl = sessionStorage.getItem('fileUrl');
+      const sourceLanguage = sessionStorage.getItem('sourceLanguage') || 'eng';
+      const targetLanguage = sessionStorage.getItem('targetLanguage') || 'eng';
       
       if (!fileData) {
         setError("No image found. Please upload an image first.");
@@ -78,7 +113,7 @@ const Processing = () => {
       const response = await fetch(fileData);
       const blob = await response.blob();
 
-      const { data } = await Tesseract.recognize(blob, "eng", {
+      const { data } = await Tesseract.recognize(blob, sourceLanguage, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const progressPercent = Math.round(m.progress * 40) + 10; // 10-50%
@@ -93,17 +128,38 @@ const Processing = () => {
       const lines = data.text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       const items: MenuItem[] = [];
 
-      setCurrentStep("Finding beautiful photos...");
+      const sourceLang = LANGUAGE_MAP[sourceLanguage as keyof typeof LANGUAGE_MAP] || 'en';
+      const targetLang = LANGUAGE_MAP[targetLanguage as keyof typeof LANGUAGE_MAP] || 'en';
+      const needsTranslation = sourceLang !== targetLang;
+
+      setCurrentStep(needsTranslation ? "Translating menu items..." : "Finding beautiful photos...");
       
       for (let i = 0; i < lines.length; i++) {
         const parsed = parseLine(lines[i]);
         if (!parsed || !parsed.name) continue;
 
-        setProgress(60 + Math.round((i / lines.length) * 35));
-        setCurrentStep(`Finding photo for ${parsed.name}...`);
+        const progressBase = needsTranslation ? 55 : 60;
+        const progressRange = needsTranslation ? 20 : 35;
+        setProgress(progressBase + Math.round((i / lines.length) * progressRange));
 
-        const photo = await fetchImageFor(parsed.name);
-        items.push({ ...parsed, photo });
+        let translatedName = parsed.name;
+        let translatedPrice = parsed.price;
+
+        if (needsTranslation) {
+          setCurrentStep(`Translating ${parsed.name}...`);
+          translatedName = await translateText(parsed.name, sourceLang, targetLang);
+          if (parsed.price) {
+            translatedPrice = await translateText(parsed.price, sourceLang, targetLang);
+          }
+        }
+
+        setCurrentStep(`Finding photo for ${translatedName}...`);
+        const photo = await fetchImageFor(translatedName);
+        items.push({ 
+          name: translatedName, 
+          price: translatedPrice, 
+          photo 
+        });
       }
 
       setMenuItems(items);
